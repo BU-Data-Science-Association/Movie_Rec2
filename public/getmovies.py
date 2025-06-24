@@ -2,8 +2,12 @@ import requests
 import csv
 import time
 import random
+from dotenv import load_dotenv
+import os
 
-API_KEY = "9d1945ec91bdb64dcfc8b5b52cc57e5a"
+load_dotenv()
+API_KEY = os.getenv("TMDB_API_KEY")
+print(f"Loaded API_KEY: {API_KEY}")
 NUM_MOVIES = 1000
 MOVIES_PER_PAGE = 20
 NUM_PAGES = NUM_MOVIES // MOVIES_PER_PAGE
@@ -20,6 +24,16 @@ def fetch_discover_movies(page):
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()["results"]
+def contains_nudity_keywords(movie_id):
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/keywords"
+    params = {
+        "api_key": API_KEY
+    }
+    response = requests.get(url, params=params)
+    response.raise_for_status()
+    keywords = response.json().get("keywords", [])
+    lower_keywords = [k["name"].lower() for k in keywords]
+    return any(k in lower_keywords for k in ["nudity", "sexual content", "sex", "erotic", "explicit"])
 
 def fetch_movie_details(movie_id):
     url = f"https://api.themoviedb.org/3/movie/{movie_id}"
@@ -41,6 +55,10 @@ for page in range(1, NUM_PAGES + 1):
             movie_id = m["id"]
             if movie_id not in movie_dict:
                 try:
+                    if contains_nudity_keywords(movie_id):
+                        print(f"Skipping {movie_id} due to nudity-related keywords.")
+                        continue
+
                     details = fetch_movie_details(movie_id)
                     movie_dict[movie_id] = [
                         details["id"],
@@ -48,13 +66,14 @@ for page in range(1, NUM_PAGES + 1):
                         details.get("overview", "").replace("\n", " ").replace("\r", " "),
                         details.get("poster_path", "") or ""
                     ]
-                    time.sleep(0.2)  # Respect rate limits
+                    time.sleep(0.2)
                 except Exception as e:
                     print(f"Error fetching details for movie ID {movie_id}: {e}")
         time.sleep(0.25)
     except Exception as e:
         print(f"Error on page {page}: {e}")
         break
+
 
 # Shuffle results
 movie_list = list(movie_dict.values())
