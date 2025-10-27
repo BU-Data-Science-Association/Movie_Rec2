@@ -22,7 +22,7 @@ NUM_MOVIES = 1000
 MOVIES_PER_PAGE = 20
 NUM_PAGES = NUM_MOVIES // MOVIES_PER_PAGE
 #the csv file that is created will be named movies.csv
-CSV_FILE = "movies.csv"
+CSV_FILE = "movies_fin.csv"
 
 #Fetch list of movies in the discover section of TMDB movie database
 #gonna take a page as a input from this url and API key as parameters 
@@ -33,7 +33,7 @@ def fetch_discover_movies(page):
         "language": "en-US",
         "sort_by": "popularity.desc",
         "page": page
-    }s
+    }
     response = requests.get(url, params=params)
     response.raise_for_status()
     return response.json()["results"]
@@ -81,11 +81,23 @@ for page in range(1, NUM_PAGES + 1):
                         continue
                     #Fetch details from function above and store it in the movie dictionary using ID as key and the details as the values
                     details = fetch_movie_details(movie_id)
+                    genres = ", ".join([g["name"] for g in details.get("genres", [])])
+                    production_companies = ", ".join([p["name"] for p in details.get("production_companies", [])])
+                    rating = details.get("vote_average", "")
+                    release_date = details.get("release_date", "")
+                    runtime = details.get("runtime", "")
+                    countries = ", ".join([c["name"] for c in details.get("production_countries", [])])
                     movie_dict[movie_id] = [
                         details["id"],
                         details["title"],
                         details.get("overview", "").replace("\n", " ").replace("\r", " "),
-                        details.get("poster_path", "") or ""
+                        details.get("poster_path", "") or "",
+                        genres,
+                        rating,
+                        release_date,
+                        runtime,
+                        production_companies,
+                        countries
                     ]
                     #giving the API a rest 
                     time.sleep(0.2)
@@ -109,7 +121,11 @@ print(f"Fetched {len(movie_list)} unique detailed movies. Saving to CSV...")
 
 with open(CSV_FILE, "w", newline='', encoding='utf-8') as f:
     writer = csv.writer(f)
-    writer.writerow(["id", "title", "overview", "poster_path"])
+    writer.writerow([
+    "id", "title", "overview", "poster_path",
+    "genres", "rating", "release_date", "runtime",
+    "production_companies", "production_countries"
+        ])
     writer.writerows(movie_list)
 
 print("CSV saved successfully.")
