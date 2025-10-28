@@ -1,12 +1,21 @@
 import React, { useState } from "react";
 import "./App.css";
 
-function App() {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [swipeDirection, setSwipeDirection] = useState(null);
-  const [isAnimating, setIsAnimating] = useState(false);
+interface Card {
+  id: number;
+  image: string;
+  title: string;
+  description: string;
+}
 
-  const cards = [
+type SwipeDirection = "left" | "right" | null;
+
+function App(): React.ReactElement {
+  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [swipeDirection, setSwipeDirection] = useState<SwipeDirection>(null);
+  const [isAnimating, setIsAnimating] = useState<boolean>(false);
+
+  const cards: Card[] = [
     {
       id: 1,
       image: "https://via.placeholder.com/400x500/FF6B6B/FFFFFF?text=Card+1",
@@ -39,7 +48,7 @@ function App() {
     },
   ];
 
-  const handleSwipe = (direction) => {
+  const handleSwipe = (direction: "left" | "right"): void => {
     if (isAnimating || currentIndex >= cards.length) return;
 
     setIsAnimating(true);
@@ -52,13 +61,13 @@ function App() {
     }, 500);
   };
 
-  const handleLeftClick = () => {
+  const handleLeftClick = (): void => {
     // Placeholder for left action (reject/dislike)
     console.log("Left button clicked");
     handleSwipe("left");
   };
 
-  const handleRightClick = () => {
+  const handleRightClick = (): void => {
     // Placeholder for right action (accept/like)
     console.log("Right button clicked");
     handleSwipe("right");
