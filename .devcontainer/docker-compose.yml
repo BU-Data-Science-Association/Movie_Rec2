@@ -1,0 +1,29 @@
+services:
+  fastapi:
+    build:
+      context: ..
+      dockerfile: ./fastapi.Dockerfile
+    container_name: fastapi
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../:/app
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - PYTHONUNBUFFERED=1
+
+  npmapp:
+    build:
+      context: ../movie-rec-app
+      dockerfile: Dockerfile
+    container_name: npmapp
+    ports:
+      - "3000:3000"
+    working_dir: /app
+    volumes:
+      - ../movie-rec-app:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+    command: npm start

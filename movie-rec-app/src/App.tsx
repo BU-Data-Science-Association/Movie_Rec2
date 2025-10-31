@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "./App.css";
+import { movieApi } from "./api/movieApi";
 
 interface Card {
   id: number;
@@ -14,6 +15,8 @@ function App(): React.ReactElement {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [swipeDirection, setSwipeDirection] = useState<SwipeDirection>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   const cards: Card[] = [
     {
@@ -48,11 +51,50 @@ function App(): React.ReactElement {
     },
   ];
 
-  const handleSwipe = (direction: "left" | "right"): void => {
+  // Example: Fetch data from FastAPI on component mount
+  useEffect(() => {
+    const fetchApiData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Example API call to test connection
+        const response = await movieApi.getHello();
+        console.log("FastAPI says:", response.message);
+
+        // You can fetch cards here instead of using hardcoded data
+        // const fetchedCards = await movieApi.getCards();
+        // setCards(fetchedCards);
+      } catch (err) {
+        setError("Failed to connect to API server");
+        console.error("API Error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchApiData();
+  }, []);
+
+  const handleSwipe = async (direction: "left" | "right"): Promise<void> => {
     if (isAnimating || currentIndex >= cards.length) return;
 
     setIsAnimating(true);
     setSwipeDirection(direction);
+
+    // Optional: Send swipe data to FastAPI server
+    try {
+      await movieApi.recordSwipe({
+        cardId: cards[currentIndex].id,
+        direction: direction,
+        timestamp: new Date().toISOString(),
+      });
+      console.log(
+        `Swipe ${direction} recorded for card ${cards[currentIndex].id}`
+      );
+    } catch (err) {
+      console.error("Failed to record swipe:", err);
+    }
 
     setTimeout(() => {
       setCurrentIndex(currentIndex + 1);
@@ -62,13 +104,13 @@ function App(): React.ReactElement {
   };
 
   const handleLeftClick = (): void => {
-    // Placeholder for left action (reject/dislike)
+    // Left action (reject/dislike)
     console.log("Left button clicked");
     handleSwipe("left");
   };
 
   const handleRightClick = (): void => {
-    // Placeholder for right action (accept/like)
+    // Right action (accept/like)
     console.log("Right button clicked");
     handleSwipe("right");
   };
@@ -78,7 +120,29 @@ function App(): React.ReactElement {
       <div className="app-container">
         <h1 className="app-title">Movie Recommender</h1>
 
-        {currentIndex < cards.length ? (
+        {error && (
+          <div
+            className="error-message"
+            style={{
+              color: "white",
+              background: "rgba(255, 0, 0, 0.7)",
+              padding: "10px",
+              borderRadius: "8px",
+              marginBottom: "20px",
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {isLoading ? (
+          <div
+            className="loading"
+            style={{ color: "white", fontSize: "1.5rem" }}
+          >
+            Loading...
+          </div>
+        ) : currentIndex < cards.length ? (
           <div className="card-container">
             <div
               className={`card ${
