@@ -17,7 +17,7 @@
 
 .app-container {
   width: 100%;
-  max-width: 500px;
+  max-width: 700px;
   padding: 20px;
 }
 
@@ -44,7 +44,8 @@
   overflow: hidden;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   width: 100%;
-  max-width: 400px;
+  max-width: 600px;
+  min-height: 300px;
   transition: transform 0.3s ease;
   position: relative;
 }
@@ -152,8 +153,34 @@
 }
 
 .card-content {
-  padding: 25px;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 0;
   text-align: left;
+}
+
+.card-poster-container {
+  flex-shrink: 0;
+  width: 200px;
+  overflow: hidden;
+}
+
+.card-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-text {
+  flex: 1;
+  padding: 25px 25px 25px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 400px;
 }
 
 .card-title {

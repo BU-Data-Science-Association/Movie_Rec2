@@ -6,6 +6,7 @@ export interface ApiCard {
   id: number;
   title: string;
   description: string;
+  poster_path?: string;
 }
 
 export interface FeedbackData {

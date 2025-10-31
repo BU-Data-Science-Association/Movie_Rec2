@@ -3,6 +3,7 @@ from pydantic import BaseModel
 import numpy as np
 import pickle
 import os
+import pandas as pd
 from fastapi.middleware.cors import CORSMiddleware
 
 # ---- Setup ----
@@ -31,6 +32,12 @@ X = data["X"]
 titles = data["titles"]
 overviews = data["overviews"]
 print(f"✅ Loaded {len(titles)} movies with {X.shape[1]} features")
+
+# Load poster paths from CSV
+print("Loading poster paths from CSV...")
+df = pd.read_csv("movies_fin.csv")
+poster_paths = df["poster_path"].values
+print(f"✅ Loaded {len(poster_paths)} poster paths")
 
 
 # ---- LinUCB Model ----
@@ -92,6 +99,7 @@ def get_next():
 
         title = str(titles[best_idx])
         overview = str(overviews[best_idx])[:400] if len(overviews[best_idx]) > 400 else str(overviews[best_idx])
+        poster_path = str(poster_paths[best_idx]) if best_idx < len(poster_paths) else None
 
         print(f"🎬 Recommended: {title}")  # shows in backend log
 
@@ -99,6 +107,7 @@ def get_next():
             "id": best_idx,
             "title": title,
             "description": overview,
+            "poster_path": poster_path,
         }
     except Exception as e:
         print(f"❌ Error in get_next: {e}")

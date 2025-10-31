@@ -6,6 +6,7 @@ interface Card {
   id: number;
   title: string;
   description: string;
+  poster_path?: string;
 }
 
 type SwipeDirection = "left" | "right" | null;
@@ -128,8 +129,22 @@ function App(): React.ReactElement {
               } ${swipeDirection === "right" ? "swipe-right" : ""}`}
             >
               <div className="card-content">
-                <h2 className="card-title">{currentCard.title}</h2>
-                <p className="card-description">{currentCard.description}</p>
+                {currentCard.poster_path && (
+                  <div className="card-poster-container">
+                    <img
+                      src={`https://image.tmdb.org/t/p/w500${currentCard.poster_path}`}
+                      alt={currentCard.title}
+                      className="card-poster"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  </div>
+                )}
+                <div className="card-text">
+                  <h2 className="card-title">{currentCard.title}</h2>
+                  <p className="card-description">{currentCard.description}</p>
+                </div>
               </div>
               {swipeDirection && (
                 <div className={`swipe-overlay ${swipeDirection}`}>
