@@ -4,15 +4,13 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
 // Types for API responses
 export interface ApiCard {
   id: number;
-  image: string;
   title: string;
   description: string;
 }
 
-export interface SwipeData {
-  cardId: number;
-  direction: "left" | "right";
-  timestamp: string;
+export interface FeedbackData {
+  movie_id: number;
+  reward: number; // 1 for like, -1 for dislike
 }
 
 // API service class
@@ -48,42 +46,22 @@ class MovieApiService {
     }
   }
 
-  // Example: Get hello message
-  async getHello(): Promise<{ message: string }> {
-    return this.fetchApi<{ message: string }>("/hello");
+  // Get next movie recommendation
+  async getNextMovie(): Promise<ApiCard> {
+    return this.fetchApi<ApiCard>("/next");
   }
 
-  // Example: Fetch cards/movies from the server
-  async getCards(): Promise<ApiCard[]> {
-    return this.fetchApi<ApiCard[]>("/cards");
-  }
-
-  // Example: Get a single card
-  async getCard(id: number): Promise<ApiCard> {
-    return this.fetchApi<ApiCard>(`/cards/${id}`);
-  }
-
-  // Example: Send swipe action to server
-  async recordSwipe(data: SwipeData): Promise<{ success: boolean }> {
-    return this.fetchApi<{ success: boolean }>("/swipe", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  }
-
-  // Example: Get recommendations
-  async getRecommendations(userId?: string): Promise<ApiCard[]> {
-    const endpoint = userId
-      ? `/recommendations?user_id=${userId}`
-      : "/recommendations";
-    return this.fetchApi<ApiCard[]>(endpoint);
-  }
-
-  // Example: Reset user preferences
-  async resetPreferences(userId: string): Promise<{ success: boolean }> {
-    return this.fetchApi<{ success: boolean }>(`/reset/${userId}`, {
-      method: "POST",
-    });
+  // Send feedback (like/dislike)
+  async sendFeedback(
+    data: FeedbackData
+  ): Promise<{ status: string; movie_id: number; reward: number }> {
+    return this.fetchApi<{ status: string; movie_id: number; reward: number }>(
+      "/feedback",
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+      }
+    );
   }
 }
 

@@ -4,7 +4,6 @@ import { movieApi } from "./api/movieApi";
 
 interface Card {
   id: number;
-  image: string;
   title: string;
   description: string;
 }
@@ -12,94 +11,68 @@ interface Card {
 type SwipeDirection = "left" | "right" | null;
 
 function App(): React.ReactElement {
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<SwipeDirection>(null);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [allDone, setAllDone] = useState<boolean>(false);
 
-  const cards: Card[] = [
-    {
-      id: 1,
-      image: "https://via.placeholder.com/400x500/FF6B6B/FFFFFF?text=Card+1",
-      title: "Card 1",
-      description: "This is the first card with some sample text.",
-    },
-    {
-      id: 2,
-      image: "https://via.placeholder.com/400x500/4ECDC4/FFFFFF?text=Card+2",
-      title: "Card 2",
-      description: "This is the second card with different content.",
-    },
-    {
-      id: 3,
-      image: "https://via.placeholder.com/400x500/45B7D1/FFFFFF?text=Card+3",
-      title: "Card 3",
-      description: "This is the third card with more information.",
-    },
-    {
-      id: 4,
-      image: "https://via.placeholder.com/400x500/96CEB4/FFFFFF?text=Card+4",
-      title: "Card 4",
-      description: "This is the fourth card in the deck.",
-    },
-    {
-      id: 5,
-      image: "https://via.placeholder.com/400x500/FFEAA7/333333?text=Card+5",
-      title: "Card 5",
-      description: "This is the fifth and final card.",
-    },
-  ];
+  // Fetch next movie recommendation
+  const fetchNextMovie = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const movie = await movieApi.getNextMovie();
 
-  // Example: Fetch data from FastAPI on component mount
-  useEffect(() => {
-    const fetchApiData = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        // Example API call to test connection
-        const response = await movieApi.getHello();
-        console.log("FastAPI says:", response.message);
-
-        // You can fetch cards here instead of using hardcoded data
-        // const fetchedCards = await movieApi.getCards();
-        // setCards(fetchedCards);
-      } catch (err) {
-        setError("Failed to connect to API server");
-        console.error("API Error:", err);
-      } finally {
-        setIsLoading(false);
+      // Check if backend sent "All movies seen" message
+      if ((movie as any).message === "All movies seen") {
+        setAllDone(true);
+        setCurrentCard(null);
+      } else {
+        setCurrentCard(movie);
+        setAllDone(false);
       }
-    };
+    } catch (err) {
+      setError("Failed to fetch next movie");
+      console.error("API Error:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    fetchApiData();
+  // Fetch first movie on mount
+  useEffect(() => {
+    fetchNextMovie();
   }, []);
 
   const handleSwipe = async (direction: "left" | "right"): Promise<void> => {
-    if (isAnimating || currentIndex >= cards.length) return;
+    if (isAnimating || !currentCard) return;
 
     setIsAnimating(true);
     setSwipeDirection(direction);
 
-    // Optional: Send swipe data to FastAPI server
+    // Send feedback to backend (1 for like/right, -1 for dislike/left)
+    const reward = direction === "right" ? 1 : -1;
+
     try {
-      await movieApi.recordSwipe({
-        cardId: cards[currentIndex].id,
-        direction: direction,
-        timestamp: new Date().toISOString(),
+      await movieApi.sendFeedback({
+        movie_id: currentCard.id,
+        reward: reward,
       });
       console.log(
-        `Swipe ${direction} recorded for card ${cards[currentIndex].id}`
+        `Feedback sent: ${direction} (reward: ${reward}) for "${currentCard.title}"`
       );
     } catch (err) {
-      console.error("Failed to record swipe:", err);
+      console.error("Failed to send feedback:", err);
+      setError("Failed to send feedback to server");
     }
 
-    setTimeout(() => {
-      setCurrentIndex(currentIndex + 1);
+    // Animate and fetch next movie
+    setTimeout(async () => {
       setSwipeDirection(null);
       setIsAnimating(false);
+      await fetchNextMovie();
     }, 500);
   };
 
@@ -142,25 +115,21 @@ function App(): React.ReactElement {
           >
             Loading...
           </div>
-        ) : currentIndex < cards.length ? (
+        ) : allDone ? (
+          <div className="end-message">
+            <h2>All movies seen!</h2>
+            <p>No more recommendations available.</p>
+          </div>
+        ) : currentCard ? (
           <div className="card-container">
             <div
               className={`card ${
                 swipeDirection === "left" ? "swipe-left" : ""
               } ${swipeDirection === "right" ? "swipe-right" : ""}`}
             >
-              <div className="card-image-container">
-                <img
-                  src={cards[currentIndex].image}
-                  alt={cards[currentIndex].title}
-                  className="card-image"
-                />
-              </div>
               <div className="card-content">
-                <h2 className="card-title">{cards[currentIndex].title}</h2>
-                <p className="card-description">
-                  {cards[currentIndex].description}
-                </p>
+                <h2 className="card-title">{currentCard.title}</h2>
+                <p className="card-description">{currentCard.description}</p>
               </div>
               {swipeDirection && (
                 <div className={`swipe-overlay ${swipeDirection}`}>
@@ -175,24 +144,21 @@ function App(): React.ReactElement {
               <button
                 className="action-button left-button"
                 onClick={handleLeftClick}
+                disabled={isAnimating}
               >
-                Left
+                ✗ Dislike
               </button>
               <button
                 className="action-button right-button"
                 onClick={handleRightClick}
+                disabled={isAnimating}
               >
-                Right
+                ✓ Like
               </button>
             </div>
           </div>
         ) : (
-          <div className="end-message">
-            <h2>No more cards!</h2>
-            <button className="reset-button" onClick={() => setCurrentIndex(0)}>
-              Reset
-            </button>
-          </div>
+          <div className="loading">No movie available</div>
         )}
       </div>
     </div>
