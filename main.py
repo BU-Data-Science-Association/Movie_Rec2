@@ -44,20 +44,28 @@ print(f"Loaded {len(poster_paths)} poster paths")
 class LinUCB:
     def __init__(self, n_features, alpha=1.0):
         self.alpha = alpha
-        self.A = np.eye(n_features)
-        self.b = np.zeros((n_features, 1))
-        self.A_inv = np.eye(n_features)  # Cache the inverse
+        self.n_features = n_features
+        self.X_history = []
+        self.y_history = []
         
     def predict(self, x):
-        theta = self.A_inv @ self.b
-        mean = float(theta.T @ x)
-        uncertainty = float(self.alpha * np.sqrt(x.T @ self.A_inv @ x))
+        if not self.X_history:
+            return 0.0
+        
+        X_mat = np.array(self.X_history)  # (n_samples, n_features)
+        y_vec = np.array(self.y_history)  # (n_samples,)
+        A = X_mat.T @ X_mat + np.eye(self.n_features)
+        A_inv = np.linalg.inv(A)
+        theta = A_inv @ (X_mat.T @ y_vec)  # theta is (n_features,)
+        
+        x_flat = x.flatten()  # (n_features,)
+        mean = theta.T @ x_flat
+        uncertainty = self.alpha * np.sqrt(x_flat.T @ A_inv @ x_flat)
         return mean + uncertainty
     
     def update(self, x, reward):
-        self.A += x @ x.T
-        self.b += reward * x
-        self.A_inv = np.linalg.inv(self.A)  # Only invert when A changes
+        self.X_history.append(x.flatten())
+        self.y_history.append(reward)
 
 bandit = LinUCB(n_features=X.shape[1], alpha=2)
 seen = set()
@@ -75,6 +83,17 @@ def get_next():
         if len(seen) >= len(X):
             return {"message": "All movies seen"}
 
+        # Precompute theta and A_inv once for all predictions
+        if bandit.X_history:
+            X_mat = np.array(bandit.X_history)  # (n_samples, n_features)
+            y_vec = np.array(bandit.y_history)  # (n_samples,)
+            A = X_mat.T @ X_mat + np.eye(bandit.n_features)
+            A_inv = np.linalg.inv(A)
+            theta = A_inv @ (X_mat.T @ y_vec)  # theta is (n_features,)
+        else:
+            theta = np.zeros(bandit.n_features)
+            A_inv = np.eye(bandit.n_features)
+
         print(f"Computing scores for {len(X)} movies...")  # DEBUG
         scores = np.zeros(len(X))  # Pre-allocate array for speed
         for i in range(len(X)):
@@ -83,21 +102,25 @@ def get_next():
             if i in seen:
                 scores[i] = -np.inf
             else:
-                x = X[i].reshape(-1, 1)
-                try:
-                    score = bandit.predict(x)
-                    scores[i] = float(score)
-                except Exception as e:
-                    print(f"Prediction error for movie {i}:", e)
-                    scores[i] = 0.0
+                x = X[i].reshape(-1, 1)  # (n_features, 1)
+                x_flat = x.flatten()  # (n_features,)
+                mean = theta.T @ x_flat
+                uncertainty = bandit.alpha * np.sqrt(x_flat.T @ A_inv @ x_flat)
+                score = mean + uncertainty
+                scores[i] = float(score)
 
         print(f"All {len(X)} scores computed, finding best...")  # DEBUG
         best_idx = int(np.argmax(scores))
         seen.add(best_idx)
 
         title = str(titles[best_idx])
-        overview = str(overviews[best_idx])[:400] if len(overviews[best_idx]) > 400 else str(overviews[best_idx])
-        poster_path = str(poster_paths[best_idx]) if best_idx < len(poster_paths) else None
+        overview_raw = overviews[best_idx]
+        if isinstance(overview_raw, str) and not pd.isna(overview_raw):
+            overview = overview_raw[:400] if len(overview_raw) > 400 else overview_raw
+        else:
+            overview = ""
+        poster_path_raw = poster_paths[best_idx] if best_idx < len(poster_paths) else None
+        poster_path = str(poster_path_raw) if poster_path_raw is not None and not pd.isna(poster_path_raw) else None
 
         print(f"Recommended: {title}")  # shows in backend log
 
