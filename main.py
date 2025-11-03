@@ -31,13 +31,13 @@ with open(EMBEDDINGS_FILE, "rb") as f:
 X = data["X"]
 titles = data["titles"]
 overviews = data["overviews"]
-print(f"✅ Loaded {len(titles)} movies with {X.shape[1]} features")
+print(f"Loaded {len(titles)} movies with {X.shape[1]} features")
 
 # Load poster paths from CSV
 print("Loading poster paths from CSV...")
 df = pd.read_csv("movies_fin.csv")
 poster_paths = df["poster_path"].values
-print(f"✅ Loaded {len(poster_paths)} poster paths")
+print(f"Loaded {len(poster_paths)} poster paths")
 
 
 # ---- LinUCB Model ----
@@ -59,7 +59,7 @@ class LinUCB:
         self.b += reward * x
         self.A_inv = np.linalg.inv(self.A)  # Only invert when A changes
 
-bandit = LinUCB(n_features=X.shape[1], alpha=0.7)
+bandit = LinUCB(n_features=X.shape[1], alpha=2)
 seen = set()
 
 # ---- API Models ----
@@ -70,18 +70,16 @@ class Feedback(BaseModel):
 # ---- API Routes ----
 @app.get("/next")
 def get_next():
-    print("🔵 /next endpoint called")  # DEBUG
+    print("/next endpoint called")  # DEBUG
     try:
         if len(seen) >= len(X):
             return {"message": "All movies seen"}
 
-        print(f"📊 Computing scores for {len(X)} movies...")  # DEBUG
+        print(f"Computing scores for {len(X)} movies...")  # DEBUG
         scores = np.zeros(len(X))  # Pre-allocate array for speed
-        
         for i in range(len(X)):
             if i % 100 == 0:  # Print progress every 100 movies
                 print(f"  Progress: {i}/{len(X)} movies processed...")
-            
             if i in seen:
                 scores[i] = -np.inf
             else:
@@ -90,10 +88,10 @@ def get_next():
                     score = bandit.predict(x)
                     scores[i] = float(score)
                 except Exception as e:
-                    print(f"⚠️ Prediction error for movie {i}:", e)
+                    print(f"Prediction error for movie {i}:", e)
                     scores[i] = 0.0
 
-        print(f"✅ All {len(X)} scores computed, finding best...")  # DEBUG
+        print(f"All {len(X)} scores computed, finding best...")  # DEBUG
         best_idx = int(np.argmax(scores))
         seen.add(best_idx)
 
@@ -101,7 +99,7 @@ def get_next():
         overview = str(overviews[best_idx])[:400] if len(overviews[best_idx]) > 400 else str(overviews[best_idx])
         poster_path = str(poster_paths[best_idx]) if best_idx < len(poster_paths) else None
 
-        print(f"🎬 Recommended: {title}")  # shows in backend log
+        print(f"Recommended: {title}")  # shows in backend log
 
         return {
             "id": best_idx,
@@ -110,7 +108,7 @@ def get_next():
             "poster_path": poster_path,
         }
     except Exception as e:
-        print(f"❌ Error in get_next: {e}")
+        print(f"Error in get_next: {e}")
         import traceback
         traceback.print_exc()
         return {"error": str(e), "message": "Error getting next movie"}
@@ -119,5 +117,5 @@ def get_next():
 def send_feedback(fb: Feedback):
     x = X[fb.movie_id].reshape(-1, 1)
     bandit.update(x, fb.reward)
-    print(f"✅ Feedback received for {titles[fb.movie_id]} — reward {fb.reward}")
+    print(f"Feedback received for {titles[fb.movie_id]} - reward {fb.reward}")
     return {"status": "updated", "movie_id": fb.movie_id, "reward": fb.reward}
