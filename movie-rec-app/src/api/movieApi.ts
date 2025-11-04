@@ -14,6 +14,38 @@ export interface FeedbackData {
   reward: number; // 1 for like, -1 for dislike
 }
 
+export interface WeightChange {
+  feature_index: number;
+  feature_name: string;
+  before: number;
+  after: number;
+  change: number;
+}
+
+export interface FeatureWeight {
+  feature_index: number;
+  feature_name: string;
+  weight: number;
+}
+
+export interface Analytics {
+  top_weights: FeatureWeight[];
+  confidence: number;
+  stats: {
+    total_interactions: number;
+    average_reward: number;
+    movies_rated: number;
+    movies_remaining: number;
+  };
+}
+
+export interface FeedbackResponse {
+  status: string;
+  movie_id: number;
+  reward: number;
+  changes: WeightChange[];
+}
+
 // API service class
 class MovieApiService {
   private baseUrl: string;
@@ -53,16 +85,16 @@ class MovieApiService {
   }
 
   // Send feedback (like/dislike)
-  async sendFeedback(
-    data: FeedbackData
-  ): Promise<{ status: string; movie_id: number; reward: number }> {
-    return this.fetchApi<{ status: string; movie_id: number; reward: number }>(
-      "/feedback",
-      {
-        method: "POST",
-        body: JSON.stringify(data),
-      }
-    );
+  async sendFeedback(data: FeedbackData): Promise<FeedbackResponse> {
+    return this.fetchApi<FeedbackResponse>("/feedback", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Get analytics data
+  async getAnalytics(): Promise<Analytics> {
+    return this.fetchApi<Analytics>("/analytics");
   }
 }
 

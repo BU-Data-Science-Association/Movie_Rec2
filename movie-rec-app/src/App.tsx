@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import "./App.css";
-import { movieApi } from "./api/movieApi";
+import { movieApi, Analytics, WeightChange } from "./api/movieApi";
+import AnalyticsPanel from "./components/AnalyticsPanel";
 
 interface Card {
   id: number;
@@ -18,6 +19,24 @@ function App(): React.ReactElement {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [allDone, setAllDone] = useState<boolean>(false);
+  const [analytics, setAnalytics] = useState<Analytics | null>(null);
+  const [recentChanges, setRecentChanges] = useState<WeightChange[] | null>(
+    null
+  );
+  const [analyticsLoading, setAnalyticsLoading] = useState<boolean>(false);
+
+  // Fetch analytics data
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const data = await movieApi.getAnalytics();
+      setAnalytics(data);
+    } catch (err) {
+      console.error("Failed to fetch analytics:", err);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
 
   // Fetch next movie recommendation
   const fetchNextMovie = async () => {
@@ -45,6 +64,7 @@ function App(): React.ReactElement {
   // Fetch first movie on mount
   useEffect(() => {
     fetchNextMovie();
+    fetchAnalytics();
   }, []);
 
   const handleSwipe = async (direction: "left" | "right"): Promise<void> => {
@@ -57,13 +77,22 @@ function App(): React.ReactElement {
     const reward = direction === "right" ? 1 : -1;
 
     try {
-      await movieApi.sendFeedback({
+      const response = await movieApi.sendFeedback({
         movie_id: currentCard.id,
         reward: reward,
       });
+
+      // Store the changes returned from the feedback
+      if (response.changes) {
+        setRecentChanges(response.changes);
+      }
+
       console.log(
         `Feedback sent: ${direction} (reward: ${reward}) for "${currentCard.title}"`
       );
+
+      // Fetch updated analytics
+      await fetchAnalytics();
     } catch (err) {
       console.error("Failed to send feedback:", err);
       setError("Failed to send feedback to server");
@@ -109,72 +138,84 @@ function App(): React.ReactElement {
           </div>
         )}
 
-        {isLoading ? (
-          <div
-            className="loading"
-            style={{ color: "white", fontSize: "1.5rem" }}
-          >
-            Loading...
-          </div>
-        ) : allDone ? (
-          <div className="end-message">
-            <h2>All movies seen!</h2>
-            <p>No more recommendations available.</p>
-          </div>
-        ) : currentCard ? (
-          <div className="card-container">
-            <div
-              className={`card ${
-                swipeDirection === "left" ? "swipe-left" : ""
-              } ${swipeDirection === "right" ? "swipe-right" : ""}`}
-            >
-              <div className="card-content">
-                {currentCard.poster_path && (
-                  <div className="card-poster-container">
-                    <img
-                      src={`https://image.tmdb.org/t/p/w500${currentCard.poster_path}`}
-                      alt={currentCard.title}
-                      className="card-poster"
-                      onError={(e) => {
-                        e.currentTarget.style.display = "none";
-                      }}
-                    />
+        <div className="main-content">
+          <div className="movie-section">
+            {isLoading ? (
+              <div
+                className="loading"
+                style={{ color: "white", fontSize: "1.5rem" }}
+              >
+                Loading...
+              </div>
+            ) : allDone ? (
+              <div className="end-message">
+                <h2>All movies seen!</h2>
+                <p>No more recommendations available.</p>
+              </div>
+            ) : currentCard ? (
+              <div className="card-container">
+                <div
+                  className={`card ${
+                    swipeDirection === "left" ? "swipe-left" : ""
+                  } ${swipeDirection === "right" ? "swipe-right" : ""}`}
+                >
+                  <div className="card-content">
+                    {currentCard.poster_path && (
+                      <div className="card-poster-container">
+                        <img
+                          src={`https://image.tmdb.org/t/p/w500${currentCard.poster_path}`}
+                          alt={currentCard.title}
+                          className="card-poster"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="card-text">
+                      <h2 className="card-title">{currentCard.title}</h2>
+                      <p className="card-description">
+                        {currentCard.description}
+                      </p>
+                    </div>
                   </div>
-                )}
-                <div className="card-text">
-                  <h2 className="card-title">{currentCard.title}</h2>
-                  <p className="card-description">{currentCard.description}</p>
+                  {swipeDirection && (
+                    <div className={`swipe-overlay ${swipeDirection}`}>
+                      <div className="swipe-text">
+                        {swipeDirection === "left" ? "NOPE" : "LIKE"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="button-container">
+                  <button
+                    className="action-button left-button"
+                    onClick={handleLeftClick}
+                    disabled={isAnimating}
+                  >
+                    ✗ Dislike
+                  </button>
+                  <button
+                    className="action-button right-button"
+                    onClick={handleRightClick}
+                    disabled={isAnimating}
+                  >
+                    ✓ Like
+                  </button>
                 </div>
               </div>
-              {swipeDirection && (
-                <div className={`swipe-overlay ${swipeDirection}`}>
-                  <div className="swipe-text">
-                    {swipeDirection === "left" ? "NOPE" : "LIKE"}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="button-container">
-              <button
-                className="action-button left-button"
-                onClick={handleLeftClick}
-                disabled={isAnimating}
-              >
-                ✗ Dislike
-              </button>
-              <button
-                className="action-button right-button"
-                onClick={handleRightClick}
-                disabled={isAnimating}
-              >
-                ✓ Like
-              </button>
-            </div>
+            ) : (
+              <div className="loading">No movie available</div>
+            )}
           </div>
-        ) : (
-          <div className="loading">No movie available</div>
-        )}
+
+          <AnalyticsPanel
+            analytics={analytics}
+            recentChanges={recentChanges}
+            isLoading={analyticsLoading}
+          />
+        </div>
       </div>
     </div>
   );
