@@ -2,7 +2,7 @@
   "name": "Movie Rec Dev Container",
   "dockerComposeFile": ["docker-compose.yml"],
   "service": "fastapi",
-  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "workspaceFolder": "/app",
   "forwardPorts": [8000, 3000],
   "portsAttributes": {
     "8000": {
