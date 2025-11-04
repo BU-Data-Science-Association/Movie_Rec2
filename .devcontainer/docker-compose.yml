@@ -3,27 +3,35 @@ services:
     build:
       context: ..
       dockerfile: ./fastapi.Dockerfile
-    container_name: fastapi
     ports:
       - "8000:8000"
     volumes:
-      - ../:/app
+      - ../:/workspaces/${localWorkspaceFolderBasename}:cached
+    working_dir: /workspaces/${localWorkspaceFolderBasename}
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - PYTHONUNBUFFERED=1
+    networks:
+      - movie-rec-network
 
   npmapp:
     build:
       context: ../movie-rec-app
       dockerfile: Dockerfile
-    container_name: npmapp
     ports:
       - "3000:3000"
     working_dir: /app
     volumes:
-      - ../movie-rec-app:/app
+      - ../movie-rec-app:/app:cached
       - /app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
       - HOST=0.0.0.0
+      - WATCHPACK_POLLING=true
     command: npm start
+    networks:
+      - movie-rec-network
+
+networks:
+  movie-rec-network:
+    driver: bridge
