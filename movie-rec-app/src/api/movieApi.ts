@@ -1,5 +1,6 @@
 // API configuration
-const API_BASE_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+// In dev with proxy, use relative path. In production, use env var or localhost
+const API_BASE_URL = process.env.REACT_APP_API_URL || "";
 
 // Types for API responses
 export interface ApiCard {
