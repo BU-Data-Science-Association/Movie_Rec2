@@ -47,25 +47,40 @@ class LinUCB:
         self.n_features = n_features
         self.X_history = []
         self.y_history = []
+        self._theta = None
+        self._A_inv = None
+        self._needs_update = True
+        
+    def _compute_params(self):
+        """Compute and cache theta and A_inv"""
+        if not self._needs_update:
+            return
+            
+        if not self.X_history:
+            self._theta = np.zeros(self.n_features)
+            self._A_inv = np.eye(self.n_features)
+        else:
+            X_mat = np.array(self.X_history)  # (n_samples, n_features)
+            y_vec = np.array(self.y_history)  # (n_samples,)
+            A = X_mat.T @ X_mat + np.eye(self.n_features)
+            self._A_inv = np.linalg.inv(A)
+            self._theta = self._A_inv @ (X_mat.T @ y_vec)  # theta is (n_features,)
+        
+        self._needs_update = False
         
     def predict(self, x):
-        if not self.X_history:
-            return 0.0
-        
-        X_mat = np.array(self.X_history)  # (n_samples, n_features)
-        y_vec = np.array(self.y_history)  # (n_samples,)
-        A = X_mat.T @ X_mat + np.eye(self.n_features)
-        A_inv = np.linalg.inv(A)
-        theta = A_inv @ (X_mat.T @ y_vec)  # theta is (n_features,)
+        """Predict UCB score for a single feature vector"""
+        self._compute_params()
         
         x_flat = x.flatten()  # (n_features,)
-        mean = theta.T @ x_flat
-        uncertainty = self.alpha * np.sqrt(x_flat.T @ A_inv @ x_flat)
+        mean = self._theta.T @ x_flat
+        uncertainty = self.alpha * np.sqrt(x_flat.T @ self._A_inv @ x_flat)
         return mean + uncertainty
     
     def update(self, x, reward):
         self.X_history.append(x.flatten())
         self.y_history.append(reward)
+        self._needs_update = True
 
 bandit = LinUCB(n_features=X.shape[1], alpha=2)
 seen = set()
@@ -83,18 +98,7 @@ def get_next():
         if len(seen) >= len(X):
             return {"message": "All movies seen"}
 
-        # Precompute theta and A_inv once for all predictions
-        if bandit.X_history:
-            X_mat = np.array(bandit.X_history)  # (n_samples, n_features)
-            y_vec = np.array(bandit.y_history)  # (n_samples,)
-            A = X_mat.T @ X_mat + np.eye(bandit.n_features)
-            A_inv = np.linalg.inv(A)
-            theta = A_inv @ (X_mat.T @ y_vec)  # theta is (n_features,)
-        else:
-            theta = np.zeros(bandit.n_features)
-            A_inv = np.eye(bandit.n_features)
-
-        print(f"Computing scores for {len(X)} movies...")  # DEBUG
+        print(f"Computing scores for {len(X)} movies using bandit.predict...")  # DEBUG
         scores = np.zeros(len(X))  # Pre-allocate array for speed
         for i in range(len(X)):
             if i % 100 == 0:  # Print progress every 100 movies
@@ -103,10 +107,7 @@ def get_next():
                 scores[i] = -np.inf
             else:
                 x = X[i].reshape(-1, 1)  # (n_features, 1)
-                x_flat = x.flatten()  # (n_features,)
-                mean = theta.T @ x_flat
-                uncertainty = bandit.alpha * np.sqrt(x_flat.T @ A_inv @ x_flat)
-                score = mean + uncertainty
+                score = bandit.predict(x)
                 scores[i] = float(score)
 
         print(f"All {len(X)} scores computed, finding best...")  # DEBUG
