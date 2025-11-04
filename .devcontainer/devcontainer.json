@@ -1,0 +1,7 @@
+{
+  "name": "Movie Rec Dev Container",
+  "dockerComposeFile": ["docker-compose.yml"],
+  "service": "fastapi",
+  "workspaceFolder": "/workspaces/${{repo}}",
+  "forwardPorts": [8000, 3000]
+}
